@@ -10,7 +10,6 @@ import * as Sentry from "@sentry/node";
 import { clerkMiddleware } from "@clerk/express";
 import { clerkWebhookHandler } from "./webhooks/clerk";
 import { getEnv } from "./lib/env";
-import keepAliveCron from "./lib/cron";
 
 import productRouter from "./routes/productRouter";
 import meRouter from "./routes/meRouter";
@@ -36,7 +35,7 @@ app.post("/webhooks/polar", rawJson, (req, res) => {
 });
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
 app.use(clerkMiddleware());
 app.use(sentryClerkUserMiddleware);
 
@@ -84,9 +83,19 @@ app.use(
   },
 );
 
-app.listen(env.PORT, () => {
-  console.log("Listening on port:", env.PORT);
-  if (env.NODE_ENV === "production") {
-    keepAliveCron.start();
+const startServer = async () => {
+  try {
+    if (process.env.NODE_ENV !== "production") {
+      app.listen(env.PORT, () => {
+        console.log("Server started on port:", env.PORT);
+      });
+    }
+  } catch (error) {
+    console.error("Error starting server:", error);
+    process.exit(1); // Exit the process with a failure code
   }
-});
+};
+
+startServer();
+
+export default app;
